@@ -9,10 +9,35 @@ class CV(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    
+    # Personal Information
+    full_name = Column(String)
+    phone = Column(String)
+    email = Column(String)
+    linkedin_url = Column(String)
+    github_url = Column(String)
+    portfolio_url = Column(String)
+    location = Column(String)
+    
+    # Professional Summary
     summary = Column(Text)
-    education = Column(JSON)  # Store education details as JSON
+    
+    # Education, Experience, Skills stored as JSON
+    education = Column(JSON)  # Array of education objects
+    experience = Column(JSON)  # Array of work experience objects
+    
+    # Skills (stored as comma-separated strings or JSON)
+    technical_skills = Column(Text)
+    soft_skills = Column(Text)
+    languages = Column(Text)
+    
+    # Certifications and Projects
+    certifications = Column(JSON)  # Array of certification objects
+    projects = Column(JSON)  # Array of project objects
+    
+    # Legacy fields (kept for backward compatibility)
     skills = Column(JSON)  # Store skills array as JSON
-    projects = Column(JSON)  # Store projects array as JSON
+    
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships

@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from config import settings
+import hashlib
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -14,14 +15,24 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 
+def _normalize_password(password: str) -> str:
+    """Normalize password to handle bcrypt's 72-byte limit."""
+    # If password is longer than 72 bytes, pre-hash with SHA256
+    if len(password.encode('utf-8')) > 72:
+        return hashlib.sha256(password.encode('utf-8')).hexdigest()
+    return password
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password."""
-    return pwd_context.verify(plain_password, hashed_password)
+    normalized = _normalize_password(plain_password)
+    return pwd_context.verify(normalized, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password."""
-    return pwd_context.hash(password)
+    normalized = _normalize_password(password)
+    return pwd_context.hash(normalized)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

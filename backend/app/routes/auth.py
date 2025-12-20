@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
-from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse, UserUpdate
+from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse, UserUpdate, ProfileUpdate, PasswordChange
 from app.services.auth_service import AuthService
 from app.utils.auth import create_access_token, get_current_user_id
 
@@ -56,3 +56,45 @@ async def update_current_user(
     update_dict = update_data.dict(exclude_unset=True)
     user = AuthService.update_user(db, user_id, update_dict)
     return UserResponse.from_orm(user)
+
+
+@router.put("/update-profile", response_model=UserResponse)
+async def update_profile(
+    profile_data: ProfileUpdate,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """Update user profile (username and full name)."""
+    update_dict = profile_data.dict(exclude_unset=True)
+    user = AuthService.update_user(db, user_id, update_dict)
+    return UserResponse.from_orm(user)
+
+
+@router.post("/change-password")
+async def change_password(
+    password_data: PasswordChange,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """Change user password without requiring logout."""
+    AuthService.change_password(db, user_id, password_data.current_password, password_data.new_password)
+    return {"message": "Password changed successfully"}
+
+
+@router.get("/activity-report")
+async def get_activity_report(
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """Generate and download user activity report as PDF."""
+    from fastapi.responses import Response
+    
+    pdf_content = AuthService.generate_activity_report(db, user_id)
+    
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=activity_report_{user_id}.pdf"
+        }
+    )

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { academicService } from '../services';
-import Navigation from '../components/Navigation';
+import Layout from '../components/Layout';
 
 function Skills() {
   const [skills, setSkills] = useState([]);
@@ -58,16 +58,17 @@ function Skills() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
+      <Layout>
+        <div className="flex items-center justify-center min-h-[calc(100vh-12rem)]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <Navigation />
-      <div className="container mx-auto px-4">
+    <Layout>
+      <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2">Skills Roadmap</h1>
@@ -243,7 +244,7 @@ function Skills() {
           </>
         )}
       </div>
-    </div>
+    </Layout>
   );
 }
 

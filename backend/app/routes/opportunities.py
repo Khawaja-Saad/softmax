@@ -1,14 +1,70 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from database import get_db
 from app.utils.auth import get_current_user_id
 from app.models.cv import Opportunity
 from app.models.academic import Skill
 from app.models.user import User
 from datetime import datetime
+import httpx
+import os
 
 router = APIRouter()
+
+# Findwork.dev API configuration
+FINDWORK_API_KEY = os.getenv("FINDWORK_API_KEY", "1c7624843df925449dee76eda738dfdf019c38df")
+FINDWORK_API_URL = "https://findwork.dev/api/jobs/"
+
+@router.get("/jobs")
+async def get_findwork_jobs(
+    search: Optional[str] = Query(None, description="Search keywords like 'python', 'react', 'developer'"),
+    location: Optional[str] = Query(None, description="Filter by location like 'london', 'remote', 'new york'"),
+    remote: Optional[bool] = Query(None, description="Filter for remote jobs only"),
+    employment_type: Optional[str] = Query(None, description="Filter by employment type like 'full time', 'contract'"),
+    sort_by: Optional[str] = Query("relevance", description="Sort by 'relevance' or 'date'")
+):
+    """
+    Proxy endpoint to fetch jobs from findwork.dev API
+    Supports filtering by search, location, remote, employment_type, and sorting
+    """
+    try:
+        # Build query parameters
+        params = {}
+        if search:
+            params["search"] = search
+        if location:
+            params["location"] = location
+        if remote is not None:
+            params["remote"] = str(remote).lower()
+        if employment_type:
+            params["employment_type"] = employment_type
+        if sort_by:
+            params["sort_by"] = sort_by
+            
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                FINDWORK_API_URL,
+                params=params,
+                headers={
+                    "Authorization": f"Token {FINDWORK_API_KEY}"
+                },
+                timeout=30.0
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Failed to fetch jobs from findwork.dev: {response.text}"
+                )
+            
+            return response.json()
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Request to findwork.dev timed out")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Failed to connect to findwork.dev: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 @router.get("")
 async def get_opportunities(

@@ -23,6 +23,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    username: Optional[str]
     degree_program: Optional[str]
     current_year: Optional[int]
     current_semester: Optional[int]
@@ -46,3 +47,13 @@ class UserUpdate(BaseModel):
     current_year: Optional[int] = Field(None, ge=1, le=6)
     current_semester: Optional[int] = Field(None, ge=1, le=12)
     career_goal: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=6)

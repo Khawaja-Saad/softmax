@@ -64,6 +64,11 @@ export const projectService = {
     return response.data;
   },
 
+  deleteProject: async (id) => {
+    const response = await api.delete(`/projects/${id}`);
+    return response.data;
+  },
+
   generateProject: async (subjectId) => {
     const response = await api.post('/projects/generate', { subject_id: subjectId });
     return response.data;
@@ -83,6 +88,16 @@ export const cvService = {
 
   generateCV: async () => {
     const response = await api.post('/cv/generate');
+    return response.data;
+  },
+
+  generateFormattedCV: async (data) => {
+    const response = await api.post('/cv/generate-formatted', data);
+    return response.data;
+  },
+
+  saveCV: async (cvData) => {
+    const response = await api.post('/cv/save', cvData);
     return response.data;
   },
 

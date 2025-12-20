@@ -10,6 +10,7 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, index=True)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=False)
     degree_program = Column(String)
@@ -27,3 +28,4 @@ class User(Base):
     milestones = relationship("Milestone", back_populates="user", cascade="all, delete-orphan")
     cv = relationship("CV", back_populates="user", uselist=False, cascade="all, delete-orphan")
     opportunities = relationship("Opportunity", back_populates="user", cascade="all, delete-orphan")
+    chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")

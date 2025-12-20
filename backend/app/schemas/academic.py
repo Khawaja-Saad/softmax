@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 
@@ -19,7 +19,22 @@ class SubjectCreate(SubjectBase):
 class SubjectResponse(SubjectBase):
     id: int
     user_id: int
+    subject_data: Optional[Dict[str, Any]] = {}
     created_at: datetime
+    concepts: List[Dict[str, Any]] = []
+    generated_task: Optional[str] = None
+    status: Optional[str] = "in_progress"
+    progress: Optional[int] = 0
+    
+    @model_validator(mode='after')
+    def extract_concepts(self):
+        """Extract concepts and generated_task from subject_data."""
+        if self.subject_data:
+            if 'concepts' in self.subject_data:
+                self.concepts = self.subject_data.get('concepts', [])
+            if 'generated_task' in self.subject_data:
+                self.generated_task = self.subject_data.get('generated_task')
+        return self
     
     class Config:
         from_attributes = True

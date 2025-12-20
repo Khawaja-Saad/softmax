@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from database import Base, engine
-from app.routes import auth, academic, projects, cv, opportunities
+from app.routes import auth, academic, projects, cv, opportunities, chat
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -40,6 +40,7 @@ app.include_router(academic.router, prefix="/api/academic", tags=["Academic"])
 app.include_router(projects.router, prefix="/api/projects", tags=["Projects"])
 app.include_router(cv.router, prefix="/api/cv", tags=["CV"])
 app.include_router(opportunities.router, prefix="/api/opportunities", tags=["Opportunities"])
+app.include_router(chat.router, tags=["Chat"])
 
 if __name__ == "__main__":
     import uvicorn
