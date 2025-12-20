@@ -43,7 +43,7 @@ Return JSON with this structure:
 
         try:
             response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are an expert project designer who creates practical, resume-worthy projects for students."},
                     {"role": "user", "content": prompt}

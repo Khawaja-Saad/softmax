@@ -55,7 +55,7 @@ Return a JSON with this structure:
 
         try:
             response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are an expert academic advisor helping students map courses to practical skills."},
                     {"role": "user", "content": prompt}
@@ -117,7 +117,7 @@ Example: ["Concept 1", "Concept 2", "Concept 3", "Concept 4", "Concept 5"]"""
 
         try:
             response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are an expert educator. Return only valid JSON arrays."},
                     {"role": "user", "content": prompt}
@@ -178,7 +178,7 @@ Return ONLY the project description text, no JSON."""
 
         try:
             response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are an experienced professor who creates engaging, practical project assignments."},
                     {"role": "user", "content": prompt}
@@ -374,7 +374,7 @@ Return ONLY the formatted CV text, no explanations or metadata."""
 
         try:
             response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": f"You are an expert CV writer specializing in {format_type} format CVs. Create professional, compelling CVs that highlight candidates' strengths."},
                     {"role": "user", "content": prompt}

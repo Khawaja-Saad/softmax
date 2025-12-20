@@ -39,7 +39,16 @@ function Dashboard() {
 
       const completedProjects = projects.filter(p => p.status === 'completed').length;
       const inProgressProjects = projects.filter(p => p.status === 'in_progress').length;
-      const notStartedProjects = projects.filter(p => p.status === 'not_started').length;
+      
+      // Count subjects by status
+      const completedSubjects = subjects.filter(s => s.status === 'completed').length;
+      const inProgressSubjects = subjects.filter(s => s.status === 'in_progress').length;
+      
+      // Calculate total concepts learned
+      const totalConceptsLearned = subjects.reduce((sum, s) => {
+        const concepts = s.concepts || [];
+        return sum + concepts.filter(c => c.learned).length;
+      }, 0);
       
       const avgSkill = skills.length > 0
         ? skills.reduce((sum, s) => sum + (s.current_level || 0), 0) / skills.length
@@ -51,7 +60,9 @@ function Dashboard() {
         projects,
         completedProjects,
         inProgressProjects,
-        notStartedProjects,
+        completedSubjects,
+        inProgressSubjects,
+        totalConceptsLearned,
         totalProjects: projects.length,
         averageSkillLevel: avgSkill
       });
@@ -62,12 +73,11 @@ function Dashboard() {
     }
   };
 
-  // Prepare chart data
+  // Prepare chart data - Only Completed and In Progress (from database)
   const projectStatusData = [
-    { name: 'Completed', value: stats.completedProjects, color: '#10b981' },
-    { name: 'In Progress', value: stats.inProgressProjects, color: '#06b6d4' },
-    { name: 'Not Started', value: stats.notStartedProjects, color: '#f59e0b' }
-  ];
+    { name: 'Completed', value: stats.completedSubjects || 0, color: '#10b981' },
+    { name: 'In Progress', value: stats.inProgressSubjects || 0, color: '#06b6d4' }
+  ].filter(item => item.value > 0);
 
   const skillsChartData = stats.skills.slice(0, 6).map(skill => ({
     name: skill.name.length > 12 ? skill.name.substring(0, 12) + '...' : skill.name,
@@ -76,18 +86,22 @@ function Dashboard() {
     fullMark: 5
   }));
 
-  // Subject concepts analysis data
-  const subjectAnalysisData = stats.subjects.slice(0, 5).map(subject => {
-    const concepts = subject.concepts || [];
-    const learnedCount = concepts.filter(c => c.learned).length;
-    const totalConcepts = concepts.length || 1;
-    return {
-      name: subject.name.length > 10 ? subject.name.substring(0, 10) + '...' : subject.name,
-      learned: learnedCount,
-      remaining: totalConcepts - learnedCount,
-      progress: Math.round((learnedCount / totalConcepts) * 100)
-    };
-  });
+  // Subject concepts analysis data - Top 4 with highest percentage
+  const subjectAnalysisData = stats.subjects
+    .map(subject => {
+      const concepts = subject.concepts || [];
+      const learnedCount = concepts.filter(c => c.learned).length;
+      const totalConcepts = concepts.length || 1;
+      return {
+        name: subject.name.length > 10 ? subject.name.substring(0, 10) + '...' : subject.name,
+        fullName: subject.name,
+        learned: learnedCount,
+        remaining: totalConcepts - learnedCount,
+        progress: Math.round((learnedCount / totalConcepts) * 100)
+      };
+    })
+    .sort((a, b) => b.progress - a.progress)
+    .slice(0, 4);
 
   // Weekly activity mock data (based on project dates)
   const weeklyActivityData = [
@@ -99,21 +113,6 @@ function Dashboard() {
     { day: 'Sat', projects: 5, skills: 4, subjects: 4 },
     { day: 'Sun', projects: 3, skills: 2, subjects: 1 }
   ];
-
-  // Overall progress data
-  const overallProgressData = [
-    { name: 'Subjects', value: stats.subjects.length, fill: '#3b82f6' },
-    { name: 'Skills', value: stats.skills.length, fill: '#06b6d4' },
-    { name: 'Projects', value: stats.totalProjects, fill: '#10b981' },
-    { name: 'Completed', value: stats.completedProjects, fill: '#8b5cf6' }
-  ];
-
-  const getFilteredProjects = () => {
-    if (filterStatus === 'all') return stats.projects;
-    return stats.projects.filter(p => p.status === filterStatus);
-  };
-
-  const filteredProjects = getFilteredProjects();
 
   // Calculate completion rate
   const completionRate = stats.totalProjects > 0 
@@ -180,12 +179,12 @@ function Dashboard() {
               subtext: 'Active courses'
             },
             { 
-              label: 'Active Skills', 
-              value: stats.skills.length, 
-              icon: '⚡', 
+              label: 'In Progress', 
+              value: stats.inProgressSubjects || 0, 
+              icon: '🔄', 
               gradient: 'from-cyan-500 to-teal-500',
               delay: '100ms',
-              subtext: 'In development'
+              subtext: 'Currently learning'
             },
             { 
               label: 'Projects Done', 
@@ -196,13 +195,12 @@ function Dashboard() {
               subtext: `${completionRate}% completion rate`
             },
             { 
-              label: 'Avg Skill Level', 
-              value: stats.averageSkillLevel.toFixed(1), 
-              extra: '/5', 
-              icon: '📊', 
+              label: 'Concepts Learned', 
+              value: stats.totalConceptsLearned || 0, 
+              icon: '🧠', 
               gradient: 'from-violet-500 to-purple-500',
               delay: '300ms',
-              subtext: 'Keep improving!'
+              subtext: 'Knowledge gained'
             }
           ].map((card, index) => (
             <div
@@ -245,14 +243,14 @@ function Dashboard() {
                 <span className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center text-white shadow-lg">
                   📊
                 </span>
-                Project Status
+                Subject Progress
               </h2>
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
                 Live
               </div>
             </div>
-            {stats.totalProjects > 0 ? (
+            {stats.subjects.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <defs>
@@ -292,11 +290,11 @@ function Dashboard() {
             ) : (
               <div className="text-center py-16">
                 <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-4xl">📂</span>
+                  <span className="text-4xl">�</span>
                 </div>
-                <p className="text-gray-500 mb-4">No projects yet</p>
-                <button onClick={() => navigate('/projects')} className="btn-primary">
-                  Create Your First Project
+                <p className="text-gray-500 mb-4">No subjects yet</p>
+                <button onClick={() => navigate('/subjects')} className="btn-primary">
+                  Add Your First Subject
                 </button>
               </div>
             )}
@@ -453,7 +451,7 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Current Projects Section - Enhanced */}
+        {/* Current Projects Section - Shows In Progress Subjects */}
         <div className={`bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 ${
           animateCards ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
         }`}
@@ -463,10 +461,10 @@ function Dashboard() {
               <span className="w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-lg text-2xl">
                 🚀
               </span>
-              Current Projects
+              Current Learning
             </h2>
             <button
-              onClick={() => navigate('/projects')}
+              onClick={() => navigate('/subjects')}
               className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300 hover:scale-105"
             >
               View All
@@ -479,9 +477,9 @@ function Dashboard() {
           {/* Filters */}
           <div className="flex gap-3 mb-6 flex-wrap">
             {[
-              { key: 'in_progress', label: 'In Progress', count: stats.inProgressProjects || 0, color: 'cyan' },
-              { key: 'completed', label: 'Completed', count: stats.completedProjects, color: 'emerald' },
-              { key: 'all', label: 'All', count: stats.totalProjects, color: 'gray' }
+              { key: 'in_progress', label: 'In Progress', count: stats.inProgressSubjects || 0, color: 'cyan' },
+              { key: 'completed', label: 'Completed', count: stats.completedSubjects || 0, color: 'emerald' },
+              { key: 'all', label: 'All', count: stats.subjects.length, color: 'gray' }
             ].map(filter => (
               <button
                 key={filter.key}
@@ -497,79 +495,86 @@ function Dashboard() {
             ))}
           </div>
 
-          {/* Projects List */}
-          {filteredProjects.length === 0 ? (
-            <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl">
-              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <span className="text-5xl">📂</span>
-              </div>
-              <p className="text-gray-600 mb-2 font-medium">No {filterStatus !== 'all' ? filterStatus.replace('_', ' ') : ''} projects found</p>
-              <p className="text-gray-400 text-sm mb-6">Start building your portfolio today!</p>
-              <button onClick={() => navigate('/projects')} className="btn-primary">
-                Create New Project
-              </button>
-            </div>
-          ) : (
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${filteredProjects.length > 6 ? 'max-h-[600px] overflow-y-auto pr-2' : ''}`}>
-              {filteredProjects.map((project, index) => (
-                <div
-                  key={project.id}
-                  className="group relative overflow-hidden border-2 border-gray-100 rounded-2xl p-5 hover:shadow-xl hover:border-cyan-200 transition-all duration-300 cursor-pointer bg-white hover:-translate-y-1"
-                  onClick={() => navigate('/projects')}
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-50 to-blue-50 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
-                  
-                  <div className="relative z-10">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 pr-4">
-                        <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-cyan-600 transition-colors">
-                          {project.title}
-                        </h3>
-                        <p className="text-sm text-gray-500 line-clamp-2">{project.description}</p>
-                      </div>
-                      <span className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 ${
-                        project.status === 'completed' 
-                          ? 'bg-emerald-100 text-emerald-700' 
-                          : project.status === 'in_progress' 
-                          ? 'bg-cyan-100 text-cyan-700' 
-                          : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {project.status === 'in_progress' ? '🔄' : 
-                         project.status === 'completed' ? '✅' : '📋'}
-                        {project.status === 'in_progress' ? 'Active' : 
-                         project.status === 'completed' ? 'Done' : 'Pending'}
-                      </span>
-                    </div>
-                    
-                    {project.progress_percentage !== null && (
-                      <div className="mt-4">
-                        <div className="flex justify-between text-xs mb-2">
-                          <span className="text-gray-500 font-medium">Progress</span>
-                          <span className="font-bold text-cyan-600">{project.progress_percentage}%</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${project.progress_percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-
-                    {project.created_at && (
-                      <div className="mt-3 text-xs text-gray-400 flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </div>
-                    )}
-                  </div>
+          {/* Subjects List */}
+          {(() => {
+            const filteredSubjects = filterStatus === 'all' 
+              ? stats.subjects 
+              : stats.subjects.filter(s => s.status === filterStatus);
+            
+            return filteredSubjects.length === 0 ? (
+              <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl">
+                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <span className="text-5xl">📚</span>
                 </div>
-              ))}
-            </div>
-          )}
+                <p className="text-gray-600 mb-2 font-medium">No {filterStatus !== 'all' ? filterStatus.replace('_', ' ') : ''} subjects found</p>
+                <p className="text-gray-400 text-sm mb-6">Start your learning journey today!</p>
+                <button onClick={() => navigate('/subjects')} className="btn-primary">
+                  Add New Subject
+                </button>
+              </div>
+            ) : (
+              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${filteredSubjects.length > 6 ? 'max-h-[600px] overflow-y-auto pr-2' : ''}`}>
+                {filteredSubjects.map((subject, index) => {
+                  const concepts = subject.concepts || [];
+                  const learnedCount = concepts.filter(c => c.learned).length;
+                  const totalConcepts = concepts.length || 1;
+                  const progress = Math.round((learnedCount / totalConcepts) * 100);
+                  
+                  return (
+                    <div
+                      key={subject.id}
+                      className="group relative overflow-hidden border-2 border-gray-100 rounded-2xl p-5 hover:shadow-xl hover:border-cyan-200 transition-all duration-300 cursor-pointer bg-white hover:-translate-y-1"
+                      onClick={() => navigate('/subjects')}
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-50 to-blue-50 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
+                      
+                      <div className="relative z-10">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 pr-4">
+                            <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-cyan-600 transition-colors">
+                              {subject.name}
+                            </h3>
+                            <p className="text-sm text-gray-500 line-clamp-2">{subject.description || `${concepts.length} concepts to learn`}</p>
+                          </div>
+                          <span className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 ${
+                            subject.status === 'completed' 
+                              ? 'bg-emerald-100 text-emerald-700' 
+                              : 'bg-cyan-100 text-cyan-700'
+                          }`}>
+                            {subject.status === 'completed' ? '✅' : '🔄'}
+                            {subject.status === 'completed' ? 'Done' : 'Active'}
+                          </span>
+                        </div>
+                        
+                        <div className="mt-4">
+                          <div className="flex justify-between text-xs mb-2">
+                            <span className="text-gray-500 font-medium">{learnedCount}/{totalConcepts} concepts</span>
+                            <span className="font-bold text-cyan-600">{progress}%</span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${progress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        {subject.created_at && (
+                          <div className="mt-3 text-xs text-gray-400 flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {new Date(subject.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </Layout>
