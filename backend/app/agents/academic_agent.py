@@ -206,55 +206,99 @@ This project will showcase your understanding and ability to apply {subject_name
 
     @staticmethod
     def generate_formatted_cv(cv_data: Dict, format_type: str) -> str:
-        """Generate a formatted CV based on the selected format."""
+        """Generate a formatted CV based on the selected format.
+        Only includes fields that have actual data - no dummy/placeholder values.
+        """
         
-        # Extract CV data
-        full_name = cv_data.get('full_name', 'Your Name')
-        email = cv_data.get('email', '')
-        phone = cv_data.get('phone', '')
-        location = cv_data.get('location', '')
-        linkedin = cv_data.get('linkedin_url', '')
-        github = cv_data.get('github_url', '')
-        portfolio = cv_data.get('portfolio_url', '')
-        summary = cv_data.get('summary', '')
+        # Helper function to check if a value has real data
+        def has_value(val):
+            if val is None:
+                return False
+            if isinstance(val, str):
+                return bool(val.strip())
+            if isinstance(val, list):
+                return len(val) > 0
+            if isinstance(val, dict):
+                return len(val) > 0
+            return bool(val)
         
-        education = cv_data.get('education', [])
-        experience = cv_data.get('experience', [])
-        technical_skills = cv_data.get('technical_skills', '')
-        soft_skills = cv_data.get('soft_skills', '')
-        languages = cv_data.get('languages', '')
-        certifications = cv_data.get('certifications', [])
-        projects = cv_data.get('projects', [])
+        # Extract CV data - only use values that exist
+        full_name = cv_data.get('full_name', '') or ''
+        email = cv_data.get('email', '') or ''
+        phone = cv_data.get('phone', '') or ''
+        location = cv_data.get('location', '') or ''
+        linkedin = cv_data.get('linkedin_url', '') or ''
+        github = cv_data.get('github_url', '') or ''
+        portfolio = cv_data.get('portfolio_url', '') or ''
+        summary = cv_data.get('summary', '') or ''
         
-        # Build comprehensive CV data for AI
-        cv_info = f"""
-Name: {full_name}
-Email: {email}
-Phone: {phone}
-Location: {location}
-LinkedIn: {linkedin}
-GitHub: {github}
-Portfolio: {portfolio}
-
-Professional Summary:
-{summary}
-
-Education:
-{json.dumps(education, indent=2)}
-
-Work Experience:
-{json.dumps(experience, indent=2)}
-
-Technical Skills: {technical_skills}
-Soft Skills: {soft_skills}
-Languages: {languages}
-
-Certifications:
-{json.dumps(certifications, indent=2)}
-
-Projects:
-{json.dumps(projects, indent=2)}
-"""
+        education = cv_data.get('education', []) or []
+        experience = cv_data.get('experience', []) or []
+        technical_skills = cv_data.get('technical_skills', '') or ''
+        soft_skills = cv_data.get('soft_skills', '') or ''
+        languages = cv_data.get('languages', '') or ''
+        certifications = cv_data.get('certifications', []) or []
+        projects = cv_data.get('projects', []) or []
+        
+        # Build CV info dynamically - only include fields with actual data
+        cv_parts = []
+        
+        # Name is required
+        if has_value(full_name):
+            cv_parts.append(f"Name: {full_name}")
+        
+        # Contact info - only include what's available
+        contact_parts = []
+        if has_value(email):
+            contact_parts.append(f"Email: {email}")
+        if has_value(phone):
+            contact_parts.append(f"Phone: {phone}")
+        if has_value(location):
+            contact_parts.append(f"Location: {location}")
+        if has_value(linkedin):
+            contact_parts.append(f"LinkedIn: {linkedin}")
+        if has_value(github):
+            contact_parts.append(f"GitHub: {github}")
+        if has_value(portfolio):
+            contact_parts.append(f"Portfolio: {portfolio}")
+        
+        if contact_parts:
+            cv_parts.extend(contact_parts)
+        
+        # Professional Summary
+        if has_value(summary):
+            cv_parts.append(f"\nProfessional Summary:\n{summary}")
+        
+        # Education
+        if has_value(education):
+            cv_parts.append(f"\nEducation:\n{json.dumps(education, indent=2)}")
+        
+        # Work Experience
+        if has_value(experience):
+            cv_parts.append(f"\nWork Experience:\n{json.dumps(experience, indent=2)}")
+        
+        # Skills - only include categories that have values
+        skills_parts = []
+        if has_value(technical_skills):
+            skills_parts.append(f"Technical Skills: {technical_skills}")
+        if has_value(soft_skills):
+            skills_parts.append(f"Soft Skills: {soft_skills}")
+        if has_value(languages):
+            skills_parts.append(f"Languages: {languages}")
+        
+        if skills_parts:
+            cv_parts.append("\nSkills:")
+            cv_parts.extend(skills_parts)
+        
+        # Certifications
+        if has_value(certifications):
+            cv_parts.append(f"\nCertifications:\n{json.dumps(certifications, indent=2)}")
+        
+        # Projects
+        if has_value(projects):
+            cv_parts.append(f"\nProjects:\n{json.dumps(projects, indent=2)}")
+        
+        cv_info = "\n".join(cv_parts)
         
         # Format-specific prompts
         format_prompts = {
@@ -363,14 +407,18 @@ CRITICAL REQUIREMENTS:
         
         prompt = f"""{format_prompts.get(format_type, format_prompts['american'])}
 
-CV Data:
+CV Data (ONLY use the information provided below - do NOT add any dummy, placeholder, or fictional data):
 {cv_info}
 
-Generate a professionally formatted CV in plain text that can be easily converted to PDF.
-Use clear headers, proper spacing, and professional language.
-Focus on making the candidate's experience and skills stand out.
-Fill in realistic examples where data is missing.
-Return ONLY the formatted CV text, no explanations or metadata."""
+IMPORTANT INSTRUCTIONS:
+1. Generate a professionally formatted CV in plain text that can be easily converted to PDF.
+2. Use clear headers, proper spacing, and professional language.
+3. Focus on making the candidate's experience and skills stand out.
+4. ONLY include sections that have actual data provided above.
+5. DO NOT add any dummy data, placeholder text, or fictional information.
+6. If a section (like GitHub, LinkedIn, Portfolio, Experience, etc.) is not provided in the data above, DO NOT include that section or label at all.
+7. Skip any fields that are empty or missing - do not show the label for missing fields.
+8. Return ONLY the formatted CV text, no explanations or metadata."""
 
         try:
             response = client.chat.completions.create(

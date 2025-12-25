@@ -42,11 +42,97 @@ async def get_current_cv(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """Get user's current CV"""
+    """Get user's current CV or generate from user profile data"""
+    # First check if user has a saved CV
     cv = db.query(CV).filter(CV.user_id == user_id).order_by(CV.updated_at.desc()).first()
-    if not cv:
-        raise HTTPException(status_code=404, detail="No CV found. Generate one first.")
-    return cv
+    
+    # Get user data
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get user's projects
+    projects = db.query(Project).filter(Project.user_id == user_id).all()
+    projects_list = [
+        {
+            "title": p.title,
+            "description": p.description,
+            "github_url": p.github_url,
+            "live_url": p.live_url,
+            "required_skills": p.required_skills
+        }
+        for p in projects
+    ]
+    
+    # Get user's skills
+    skills = db.query(Skill).filter(Skill.user_id == user_id).all()
+    skills_list = [s.name for s in skills if s.name]
+    
+    if cv:
+        # Return existing CV but update with latest user data
+        # Only update fields that are empty in the CV but available from user
+        response_data = {
+            "id": cv.id,
+            "user_id": cv.user_id,
+            "full_name": cv.full_name or user.full_name,
+            "email": cv.email or user.email,
+            "phone": cv.phone,
+            "linkedin_url": cv.linkedin_url,
+            "github_url": cv.github_url,
+            "portfolio_url": cv.portfolio_url,
+            "location": cv.location,
+            "summary": cv.summary,
+            "education": cv.education if cv.education else [{"degree": user.degree_program, "year": user.current_year}] if user.degree_program else [],
+            "experience": cv.experience or [],
+            "technical_skills": cv.technical_skills or ", ".join(skills_list) if skills_list else "",
+            "soft_skills": cv.soft_skills,
+            "languages": cv.languages,
+            "certifications": cv.certifications or [],
+            "projects": cv.projects if cv.projects else projects_list,
+            "updated_at": cv.updated_at
+        }
+        return response_data
+    
+    # If no CV exists, create response from user profile data
+    # Build education from user data
+    education = []
+    if user.degree_program:
+        education.append({
+            "degree": user.degree_program,
+            "year": user.current_year,
+            "semester": user.current_semester
+        })
+    
+    # Build summary from user data
+    summary = ""
+    if user.degree_program or user.career_goal:
+        parts = []
+        if user.degree_program:
+            parts.append(f"{user.degree_program} student")
+        if user.career_goal:
+            parts.append(f"specializing in {user.career_goal}")
+        summary = " ".join(parts) + "." if parts else ""
+    
+    return {
+        "id": None,
+        "user_id": user_id,
+        "full_name": user.full_name,
+        "email": user.email,
+        "phone": None,
+        "linkedin_url": None,
+        "github_url": None,
+        "portfolio_url": None,
+        "location": None,
+        "summary": summary,
+        "education": education,
+        "experience": [],
+        "technical_skills": ", ".join(skills_list) if skills_list else "",
+        "soft_skills": None,
+        "languages": None,
+        "certifications": [],
+        "projects": projects_list,
+        "updated_at": None
+    }
 
 @router.post("/generate")
 async def generate_cv(
@@ -181,6 +267,10 @@ async def download_cv(
     
     # In a real implementation, this would generate a PDF
     # For now, return CV data
+    return {
+        "message": "CV download would be implemented here",
+        "cv_data": cv
+    }
 
 @router.post("/generate-formatted")
 async def generate_formatted_cv(
@@ -198,8 +288,4 @@ async def generate_formatted_cv(
     return {
         "formatted_cv": formatted_cv,
         "format": format_type
-    }
-    return {
-        "message": "CV download would be implemented here",
-        "cv_data": cv
     }
